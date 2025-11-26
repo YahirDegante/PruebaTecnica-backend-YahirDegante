@@ -1,31 +1,42 @@
 const User = require('../models/User');
+const Book = require('../models/Book');
+
+//Resolvers para consultas y mutaciones de usuarios y libros.
 
 const resolvers = {
     Query: {
+        //Obtiene todos los usuarios
         users: async () => {
             return await User.find().sort({ createdAt: -1 });
         },
-        user: async (_, { id }) => {
-            const user = await User.findById(id);
+
+        //Obtiene un usuario por su userId
+        user: async (_, { userId }) => {
+            const user = await User.findOne({ userId });
             if (!user) throw new Error('Usuario no encontrado');
             return user;
         },
 
-        books: async () => await Book.find().populate('userId').sort({ createdAt: -1 }),
+        //Obtiene todos los libros
+        books: async () => await Book.find().sort({ createdAt: -1 }),
 
-        book: async (_, { id }) => {
-            const book = await Book.findById(id).populate('userId');
+        //Obtiene un libro por su bookId
+        book: async (_, { bookId }) => {
+            const book = await Book.findOne({ bookId });
             if (!book) throw new Error('Libro no encontrado');
             return book;
         },
 
+        //Obtiene todos los libros de un usuario específico
         userBooks: async (_, { userId }) => {
-            const user = await User.findById(userId);
+            const user = await User.findOne({ userId });
             if (!user) throw new Error('Usuario no encontrado');
-            return await Book.find({ userId }).populate('userId').sort({ createdAt: -1 });
+            return await Book.find({ userId }).sort({ createdAt: -1 });
         }
     },
+    
     Mutation: {
+        //Crea un nuevo usuario
         createUser: async (_, { input }) => {
             const existingUser = await User.findOne({ email: input.email.toLowerCase() });
             if (existingUser) throw new Error('Ya existe un usuario con ese email');
@@ -36,74 +47,88 @@ const resolvers = {
             });
             return await user.save();
         },
-        updateUser: async (_, { id, input }) => {
+        
+        //Actualiza un usuario existente
+        updateUser: async (_, { userId, input }) => {
             if (input.email) {
                 const existingUser = await User.findOne({
                     email: input.email.toLowerCase(),
-                    _id: { $ne: id }
+                    userId: { $ne: userId }
                 });
                 if (existingUser) throw new Error('Ya existe un usuario con ese email');
             }
-
-            const user = await User.findByIdAndUpdate(
-                id,
+            const user = await User.findOneAndUpdate(
+                { userId },
                 { $set: input },
                 { new: true, runValidators: true }
             );
             if (!user) throw new Error('Usuario no encontrado');
             return user;
         },
-        deleteUser: async (_, { id }) => {
-            const user = await User.findByIdAndDelete(id);
+        
+        //Elimina un usuario y sus libros asociados
+        deleteUser: async (_, { userId }) => {
+            await Book.deleteMany({ userId });
+            const user = await User.findOneAndDelete({ userId });
             if (!user) throw new Error('Usuario no encontrado');
             return true;
         },
+        
+        //Crea un nuevo libro para un usuario específico
         createBook: async (_, { userId, input }) => {
-            const user = await User.findById(userId);
+            const user = await User.findOne({ userId });
             if (!user) throw new Error('Usuario no encontrado');
-
+            //Verificar si el usuario ya tiene un libro con el mismo título y autor
+            const existingBook = await Book.findOne({ 
+                userId, 
+                title: input.title.trim(),
+                author: input.author.trim()
+            });
+            
+            if (existingBook) {
+                throw new Error('Este usuario ya tiene un libro con el mismo título y autor');
+            }
             const book = new Book({
                 title: input.title.trim(),
                 author: input.author.trim(),
                 userId: userId
             });
-
-            try {
-                return await book.save();
-            } catch (error) {
-                if (error.code === 11000) {
-                    throw new Error('Este usuario ya tiene un libro con el mismo título y autor');
-                }
-                throw error;
-            }
+            return await book.save();
         },
 
-        updateBook: async (_, { id, input }) => {
+        //Actualiza un libro existente
+        updateBook: async (_, { bookId, input }) => {
             if (input.title) input.title = input.title.trim();
             if (input.author) input.author = input.author.trim();
-
-            const book = await Book.findByIdAndUpdate(
-                id,
+            const book = await Book.findOneAndUpdate(
+                { bookId },
                 { $set: input },
                 { new: true, runValidators: true }
-            ).populate('userId');
-
+            );
             if (!book) throw new Error('Libro no encontrado');
             return book;
         },
 
-        deleteBook: async (_, { id }) => {
-            const book = await Book.findByIdAndDelete(id);
+        //Elimina un libro por su bookId
+        deleteBook: async (_, { bookId }) => {
+            const book = await Book.findOneAndDelete({ bookId });
             if (!book) throw new Error('Libro no encontrado');
             return true;
         }
     },
+    
+    //Obtiene los libros de un usuario
     User: {
-        books: async (parent) => await Book.find({ userId: parent._id }).sort({ createdAt: -1 })
+        books: async (parent) => {
+            return await Book.find({ userId: parent.userId }).sort({ createdAt: -1 });
+        }
     },
 
+    //Obtiene el usuario de un libro
     Book: {
-        user: async (parent) => await User.findById(parent.userId)
+        user: async (parent) => {
+            return await User.findOne({ userId: parent.userId });
+        }
     }
 };
 

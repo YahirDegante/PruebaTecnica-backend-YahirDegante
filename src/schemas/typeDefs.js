@@ -1,8 +1,10 @@
 const { gql } = require('apollo-server-express');
 
+//Definición de tipos GraphQL para usuarios y libros.
 const typeDefs = gql`
   type User {
     _id: ID!
+    userId: Int!  
     name: String!
     email: String!
     createdAt: String!
@@ -12,9 +14,10 @@ const typeDefs = gql`
 
   type Book {
     _id: ID!
+    bookId: Int!  
     title: String!
     author: String!
-    userId: ID!
+    userId: Int!  
     user: User!
     createdAt: String!
     updatedAt: String!
@@ -42,19 +45,19 @@ const typeDefs = gql`
 
   type Query {
     users: [User!]!
-    user(id: ID!): User
+    user(userId: Int!): User             
     books: [Book!]!
-    book(id: ID!): Book
-    userBooks(userId: ID!): [Book!]!
+    book(bookId: Int!): Book
+    userBooks(userId: Int!): [Book!]!
   }
 
   type Mutation {
     createUser(input: UserInput!): User!
-    updateUser(id: ID!, input: UpdateUserInput!): User!
-    deleteUser(id: ID!): Boolean!
-    createBook(userId: ID!, input: BookInput!): Book!
-    updateBook(id: ID!, input: UpdateBookInput!): Book!
-    deleteBook(id: ID!): Boolean!
+    updateUser(userId: Int!, input: UpdateUserInput!): User!   
+    deleteUser(userId: Int!): Boolean!                         
+    createBook(userId: Int!, input: BookInput!): Book!          
+    updateBook(bookId: Int!, input: UpdateBookInput!): Book!    
+    deleteBook(bookId: Int!): Boolean!                          
   }
 `;
 
