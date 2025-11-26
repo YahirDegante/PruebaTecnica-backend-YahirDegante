@@ -7,6 +7,7 @@ const typeDefs = gql`
     email: String!
     createdAt: String!
     updatedAt: String!
+    books: [Book]!
   }
 
   type Book {
