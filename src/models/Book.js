@@ -1,6 +1,18 @@
 const mongoose = require('mongoose');
 
+/*
+    Esquema de Libro
+    bookId: Generado automaticamente (1000-9999)
+    title: Validado y con límites de longitud
+    author: Validado y con límites de longitud
+    userId: Referencia al userId del Usuario (Number) son los 4 digitos
+*/
+
 const bookSchema = new mongoose.Schema({
+    bookId: {
+        type: Number,
+        unique: true
+    },
     title: {
         type: String,
         required: [true, 'El título es obligatorio'],
@@ -11,18 +23,42 @@ const bookSchema = new mongoose.Schema({
         type: String,
         required: [true, 'El autor es obligatorio'],
         trim: true,
-        maxlength: [100, 'El nombre del autor no puede exceder 100 caracteres']
+        maxlength: [100, 'El autor no puede exceder 100 caracteres']
     },
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: [true, 'El usuario es obligatorio']
+        type: Number,
+        required: [true, 'El userId es obligatorio'],
+        ref: 'User'
     }
 }, {
     timestamps: true
 });
 
-bookSchema.index({ title: 1, author: 1, userId: 1 }, { unique: true });
-bookSchema.index({ userId: 1 });
+/*
+    Middleware pre-save:
+    Genera un bookId único solo al crear un documento, este lo genera entre 1000 y 9999.
+*/
+
+bookSchema.pre('save', async function() {
+    if (this.isNew && !this.bookId) {
+        let isUnique = false;
+        let attempts = 0;
+        
+        while (!isUnique && attempts < 10) {
+            const randomId = Math.floor(1000 + Math.random() * 9000);
+            const existing = await this.constructor.findOne({ bookId: randomId });
+            
+            if (!existing) {
+                this.bookId = randomId;
+                isUnique = true;
+            }
+            attempts++;
+        }
+        
+        if (!isUnique) {
+            throw new Error('No se pudo generar un bookId único');
+        }
+    }
+});
 
 module.exports = mongoose.model('Book', bookSchema);
